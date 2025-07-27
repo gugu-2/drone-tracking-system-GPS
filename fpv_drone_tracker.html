@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPV Drone Tracking System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0c0c0c, #1a1a2e);
+            color: #00ff41;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(0, 255, 65, 0.1);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff0000;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #00ff41;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .main-display {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            position: relative;
+            background-image:
+                radial-gradient(circle at 25% 25%, #00ff41 1px, transparent 1px),
+                radial-gradient(circle at 75% 75%, #00ff41 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: 0 0, 25px 25px;
+        }
+
+        .drone-icon {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #00ff41;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px #00ff41;
+            animation: droneMove 10s infinite linear;
+        }
+
+        @keyframes droneMove {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg) translateX(100px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg) translateX(100px) rotate(-360deg);
+            }
+        }
+
+        .drone-trail {
+            position: absolute;
+            width: 2px;
+            height: 200px;
+            background: linear-gradient(to bottom, #00ff41, transparent);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.5;
+        }
+
+        .control-panel {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 65, 0.03);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            border-radius: 8px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px #00ff41;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+            padding-bottom: 5px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .data-label {
+            color: #00cc33;
+        }
+
+        .data-value {
+            color: #00ff41;
+            font-weight: bold;
+        }
+
+        .battery-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            width: 75%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .signal-bars {
+            display: flex;
+            gap: 3px;
+            align-items: flex-end;
+            height: 20px;
+        }
+
+        .signal-bar {
+            width: 4px;
+            background: #00ff41;
+            border-radius: 2px;
+        }
+
+        .signal-bar:nth-child(1) {
+            height: 25%;
+        }
+
+        .signal-bar:nth-child(2) {
+            height: 50%;
+        }
+
+        .signal-bar:nth-child(3) {
+            height: 75%;
+        }
+
+        .signal-bar:nth-child(4) {
+            height: 100%;
+        }
+
+        .warning-panel {
+            background: rgba(255, 0, 0, 0.1);
+            border: 2px solid #ff0000;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            animation: warningBlink 1s infinite alternate;
+        }
+
+        @keyframes warningBlink {
+            0% {
+                opacity: 0.7;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .control-btn {
+            padding: 10px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 2px solid #00ff41;
+            border-radius: 5px;
+            color: #00ff41;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            font-size: 12px;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .control-btn.active {
+            background: #00ff41;
+            color: #000;
+        }
+
+        .altitude-indicator {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff41;
+            border-radius: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+        }
+
+        .altitude-marker {
+            width: 100%;
+            height: 20px;
+            background: #00ff41;
+            border-radius: 10px;
+            opacity: 0.3;
+            transition: opacity 0.3s ease;
+        }
+
+        .altitude-marker.active {
+            opacity: 1;
+            box-shadow: 0 0 10px #00ff41;
+        }
+
+        .compass {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 100px;
+            height: 100px;
+            border: 3px solid #00ff41;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .compass-needle {
+            position: absolute;
+            width: 2px;
+            height: 40px;
+            background: #ff0000;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            transform-origin: bottom;
+            animation: compassRotate 8s infinite linear;
+        }
+
+        @keyframes compassRotate {
+            0% {
+                transform: translateX(-50%) rotate(0deg);
+            }
+
+            100% {
+                transform: translateX(-50%) rotate(360deg);
+            }
+        }
+
+        .fps-counter {
+            position: absolute;
+            top: 20px;
+            right: 140px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #00ff41;
+            font-size: 14px;
+        }
+
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 2px solid #00ff41;
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: #00ff41;
+        }
+
+        .crosshair::before {
+            width: 20px;
+            height: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .crosshair::after {
+            width: 2px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .telemetry-stream {
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff41;
+            font-size: 10px;
+            padding: 10px;
+            height: 100px;
+            overflow-y: scroll;
+            border: 1px solid #00ff41;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            opacity: 0.8;
+        }
+
+        .log-entry.error {
+            color: #ff0000;
+        }
+
+        .log-entry.warning {
+            color: #ffff00;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🚁 FPV DRONE TRACKER v2.1</div>
+            <div class="connection-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="connectionText">CONNECTING...</span>
+            </div>
+        </div>
+
+        <div class="main-display">
+            <div class="map-container">
+                <div class="drone-trail"></div>
+                <div class="drone-icon" id="droneIcon"></div>
+                <div class="crosshair"></div>
+
+                <div class="compass">
+                    <div class="compass-needle"></div>
+                    <span>N</span>
+                </div>
+
+                <div class="fps-counter">
+                    FPS: <span id="fpsCounter">60</span>
+                </div>
+
+                <div class="altitude-indicator">
+                    <div class="altitude-marker active"></div>
+                    <div class="altitude-marker active"></div>
+                    <div class="altitude-marker active"></div>
+                    <div class="altitude-marker"></div>
+                    <div class="altitude-marker"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="panel-section">
+                <div class="panel-title">FLIGHT STATUS</div>
+                <div class="data-row">
+                    <span class="data-label">Flight Mode:</span>
+                    <span class="data-value" id="flightMode">STABILIZE</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Armed:</span>
+                    <span class="data-value" id="armedStatus">YES</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">GPS Fix:</span>
+                    <span class="data-value" id="gpsStatus">3D FIX</span>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">TELEMETRY</div>
+                <div class="data-row">
+                    <span class="data-label">Altitude:</span>
+                    <span class="data-value" id="altitude">45.2m</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Speed:</span>
+                    <span class="data-value" id="speed">12.5 m/s</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Distance:</span>
+                    <span class="data-value" id="distance">127m</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Heading:</span>
+                    <span class="data-value" id="heading">245°</span>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">POWER & SIGNAL</div>
+                <div class="data-row">
+                    <span class="data-label">Battery:</span>
+                    <span class="data-value" id="batteryPercent">75%</span>
+                </div>
+                <div class="battery-bar">
+                    <div class="battery-fill" id="batteryFill"></div>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Voltage:</span>
+                    <span class="data-value" id="voltage">14.8V</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Signal:</span>
+                    <div class="signal-bars">
+                        <div class="signal-bar"></div>
+                        <div class="signal-bar"></div>
+                        <div class="signal-bar"></div>
+                        <div class="signal-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">CONTROLS</div>
+                <div class="control-buttons">
+                    <button class="control-btn" id="armBtn">ARM/DISARM</button>
+                    <button class="control-btn" id="rthBtn">RTH</button>
+                    <button class="control-btn" id="holdBtn">HOLD</button>
+                    <button class="control-btn" id="landBtn">LAND</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">LIVE TELEMETRY</div>
+                <div class="telemetry-stream" id="telemetryStream">
+                    <div class="log-entry">[15:42:33] GPS: 28 satellites locked</div>
+                    <div class="log-entry">[15:42:34] Battery: 75% remaining</div>
+                    <div class="log-entry warning">[15:42:35] Wind speed: 8 m/s</div>
+                    <div class="log-entry">[15:42:36] Altitude: 45.2m AGL</div>
+                    <div class="log-entry">[15:42:37] Distance from home: 127m</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class FPVDroneTracker {
+            constructor() {
+                this.isConnected = false;
+                this.websocket = null;
+                this.telemetryData = {
+                    altitude: 45.2,
+                    speed: 12.5,
+                    distance: 127,
+                    heading: 245,
+                    battery: 75,
+                    voltage: 14.8,
+                    gpsStatus: '3D FIX',
+                    flightMode: 'STABILIZE',
+                    armed: false
+                };
+
+                this.init();
+                this.connectWebSocket();
+                this.startSimulation();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.startTelemetryUpdates();
+            }
+
+            connectWebSocket() {
+                try {
+                    this.websocket = new WebSocket('ws://localhost:8081');
+
+                    this.websocket.onopen = () => {
+                        console.log('WebSocket connected');
+                        this.isConnected = true;
+                        this.updateConnectionStatus(true);
+                        this.addTelemetryLog('WebSocket connection established');
+                    };
+
+                    this.websocket.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'telemetry') {
+                                this.updateFromBackend(data.data);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing WebSocket message:', e);
+                        }
+                    };
+
+                    this.websocket.onclose = () => {
+                        console.log('WebSocket disconnected');
+                        this.isConnected = false;
+                        this.updateConnectionStatus(false);
+                        this.addTelemetryLog('WebSocket connection lost');
+
+                        // Try to reconnect after 3 seconds
+                        setTimeout(() => this.connectWebSocket(), 3000);
+                    };
+
+                    this.websocket.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        this.addTelemetryLog('WebSocket error occurred');
+                    };
+
+                } catch (e) {
+                    console.error('Failed to connect WebSocket:', e);
+                    this.updateConnectionStatus(false);
+                    setTimeout(() => this.connectWebSocket(), 3000);
+                }
+            }
+
+            updateFromBackend(telemetryData) {
+                // Update telemetry data from backend
+                this.telemetryData.altitude = telemetryData.gps.altitude;
+                this.telemetryData.speed = telemetryData.groundspeed;
+                this.telemetryData.heading = telemetryData.heading;
+                this.telemetryData.battery = telemetryData.battery.remaining;
+                this.telemetryData.voltage = telemetryData.battery.voltage;
+                this.telemetryData.flightMode = telemetryData.flight_mode;
+                this.telemetryData.armed = telemetryData.armed;
+                this.telemetryData.gpsStatus = telemetryData.gps.fix_type === 3 ? '3D FIX' : 'NO FIX';
+                this.telemetryData.distance = telemetryData.home_distance || this.telemetryData.distance;
+
+                // Update display immediately
+                this.updateDisplay();
+                
+                // Update drone position on map based on real GPS data
+                this.updateDronePosition(telemetryData.gps.latitude, telemetryData.gps.longitude);
+                
+                // Update compass based on real heading
+                this.updateCompass(telemetryData.heading);
+            }
+
+            updateDronePosition(lat, lon) {
+                // Update drone icon position based on GPS coordinates
+                const droneIcon = document.getElementById('droneIcon');
+                
+                // Simple conversion for display (this would need proper map projection in real app)
+                const x = 50 + (lon - (-73.9851)) * 10000; // Rough conversion
+                const y = 50 + (lat - 40.7589) * 10000;
+                
+                droneIcon.style.left = Math.max(10, Math.min(90, x)) + '%';
+                droneIcon.style.top = Math.max(10, Math.min(90, y)) + '%';
+            }
+
+            updateCompass(heading) {
+                const needle = document.querySelector('.compass-needle');
+                if (needle) {
+                    needle.style.transform = `translateX(-50%) rotate(${heading}deg)`;
+                }
+            }
+
+            sendCommand(command, params = {}) {
+                if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                    const message = {
+                        command: command,
+                        params: params
+                    };
+                    this.websocket.send(JSON.stringify(message));
+                    this.addTelemetryLog(`Command sent: ${command}`);
+                } else {
+                    this.addTelemetryLog('Cannot send command - not connected');
+                }
+            }
+
+            setupEventListeners() {
+                document.getElementById('armBtn').addEventListener('click', () => this.toggleArm());
+                document.getElementById('rthBtn').addEventListener('click', () => this.returnToHome());
+                document.getElementById('holdBtn').addEventListener('click', () => this.holdPosition());
+                document.getElementById('landBtn').addEventListener('click', () => this.emergencyLand());
+            }
+
+            updateConnectionStatus(connected) {
+                const statusDot = document.getElementById('statusDot');
+                const connectionText = document.getElementById('connectionText');
+
+                if (connected) {
+                    statusDot.classList.add('connected');
+                    connectionText.textContent = 'CONNECTED';
+                } else {
+                    statusDot.classList.remove('connected');
+                    connectionText.textContent = 'DISCONNECTED';
+                }
+            }
+
+            startTelemetryUpdates() {
+                setInterval(() => {
+                    this.updateTelemetryData();
+                    this.updateDisplay();
+                }, 1000);
+
+                setInterval(() => {
+                    this.addTelemetryLog();
+                }, 2000);
+
+                setInterval(() => {
+                    this.updateFPS();
+                }, 100);
+            }
+
+            updateTelemetryData() {
+                // Simulate realistic telemetry changes
+                this.telemetryData.altitude += (Math.random() - 0.5) * 2;
+                this.telemetryData.speed += (Math.random() - 0.5) * 1;
+                this.telemetryData.distance += Math.random() * 2;
+                this.telemetryData.heading = (this.telemetryData.heading + (Math.random() - 0.5) * 10) % 360;
+                this.telemetryData.battery -= 0.01;
+                this.telemetryData.voltage = 16.8 * (this.telemetryData.battery / 100);
+
+                // Keep values within realistic ranges
+                this.telemetryData.altitude = Math.max(0, Math.min(150, this.telemetryData.altitude));
+                this.telemetryData.speed = Math.max(0, Math.min(25, this.telemetryData.speed));
+                this.telemetryData.battery = Math.max(0, this.telemetryData.battery);
+            }
+
+            updateDisplay() {
+                document.getElementById('altitude').textContent = this.telemetryData.altitude.toFixed(1) + 'm';
+                document.getElementById('speed').textContent = this.telemetryData.speed.toFixed(1) + ' m/s';
+                document.getElementById('distance').textContent = Math.round(this.telemetryData.distance) + 'm';
+                document.getElementById('heading').textContent = Math.round(this.telemetryData.heading) + '°';
+                document.getElementById('batteryPercent').textContent = Math.round(this.telemetryData.battery) + '%';
+                document.getElementById('voltage').textContent = this.telemetryData.voltage.toFixed(1) + 'V';
+                document.getElementById('flightMode').textContent = this.telemetryData.flightMode;
+                document.getElementById('armedStatus').textContent = this.telemetryData.armed ? 'YES' : 'NO';
+                document.getElementById('gpsStatus').textContent = this.telemetryData.gpsStatus;
+
+                // Update battery bar
+                const batteryFill = document.getElementById('batteryFill');
+                batteryFill.style.width = this.telemetryData.battery + '%';
+
+                // Update altitude indicator
+                const altitudeMarkers = document.querySelectorAll('.altitude-marker');
+                const activeMarkers = Math.floor((this.telemetryData.altitude / 30) * altitudeMarkers.length);
+                altitudeMarkers.forEach((marker, index) => {
+                    marker.classList.toggle('active', index < activeMarkers);
+                });
+            }
+
+            addTelemetryLog(message = null) {
+                const stream = document.getElementById('telemetryStream');
+                const now = new Date();
+                const timestamp = now.toTimeString().slice(0, 8);
+
+                if (!message) {
+                    const messages = [
+                        `GPS: ${Math.floor(Math.random() * 5) + 25} satellites locked`,
+                        `Battery: ${Math.round(this.telemetryData.battery)}% remaining`,
+                        `Wind speed: ${Math.floor(Math.random() * 5) + 3} m/s`,
+                        `Altitude: ${this.telemetryData.altitude.toFixed(1)}m AGL`,
+                        `Distance from home: ${Math.round(this.telemetryData.distance)}m`,
+                        `Signal strength: ${Math.floor(Math.random() * 20) + 80}%`,
+                        `Flight time: ${Math.floor(Math.random() * 60) + 300}s`
+                    ];
+                    message = messages[Math.floor(Math.random() * messages.length)];
+                }
+
+                const logType = Math.random() > 0.8 ? (Math.random() > 0.5 ? 'warning' : 'error') : '';
+
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${logType}`;
+                logEntry.textContent = `[${timestamp}] ${message}`;
+
+                stream.appendChild(logEntry);
+                stream.scrollTop = stream.scrollHeight;
+
+                // Keep only last 20 entries
+                while (stream.children.length > 20) {
+                    stream.removeChild(stream.firstChild);
+                }
+            }
+
+            updateFPS() {
+                const fps = Math.floor(Math.random() * 5) + 58; // Simulate 58-62 FPS
+                document.getElementById('fpsCounter').textContent = fps;
+            }
+
+            toggleArm() {
+                const command = this.telemetryData.armed ? 'disarm' : 'arm';
+                this.sendCommand(command);
+
+                const btn = document.getElementById('armBtn');
+                btn.classList.toggle('active');
+            }
+
+            returnToHome() {
+                this.sendCommand('rtl');
+
+                const btn = document.getElementById('rthBtn');
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 2000);
+            }
+
+            holdPosition() {
+                this.sendCommand('set_mode', { mode: 'LOITER' });
+
+                const btn = document.getElementById('holdBtn');
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 3000);
+            }
+
+            emergencyLand() {
+                this.sendCommand('land');
+
+                const btn = document.getElementById('landBtn');
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 5000);
+            }
+
+            startSimulation() {
+                // Add some visual effects and animations
+                setInterval(() => {
+                    if (this.isConnected) {
+                        this.simulateDroneMovement();
+                    }
+                }, 100);
+            }
+
+            simulateDroneMovement() {
+                const droneIcon = document.getElementById('droneIcon');
+                const mapContainer = document.querySelector('.map-container');
+                const containerRect = mapContainer.getBoundingClientRect();
+
+                // Simulate drone movement based on telemetry
+                const x = 50 + Math.sin(Date.now() / 2000) * 20;
+                const y = 50 + Math.cos(Date.now() / 3000) * 15;
+
+                droneIcon.style.left = x + '%';
+                droneIcon.style.top = y + '%';
+            }
+        }
+
+        // Initialize the FPV Drone Tracker when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new FPVDroneTracker();
+        });
+
+        // Add some keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch (e.key.toLowerCase()) {
+                case 'a':
+                    document.getElementById('armBtn').click();
+                    break;
+                case 'r':
+                    document.getElementById('rthBtn').click();
+                    break;
+                case 'h':
+                    document.getElementById('holdBtn').click();
+                    break;
+                case 'l':
+                    document.getElementById('landBtn').click();
+                    break;
+            }
+        });
+    </script>
+</body>
+
+</html>

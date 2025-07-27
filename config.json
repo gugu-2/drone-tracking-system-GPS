@@ -1,0 +1,26 @@
+{
+    "server": {
+        "host": "0.0.0.0",
+        "port": 8080,
+        "websocket_port": 8081
+    },
+    "drone": {
+        "connection_string": "udp:127.0.0.1:14550",
+        "heartbeat_timeout": 10,
+        "telemetry_rate": 10
+    },
+    "database": {
+        "path": "drone_data.db"
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "drone_backend.log"
+    },
+    "simulation": {
+        "enabled": true,
+        "center_lat": 40.7589,
+        "center_lon": -73.9851,
+        "flight_radius": 0.001,
+        "max_altitude": 100
+    }
+}
